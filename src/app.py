@@ -6,10 +6,15 @@ from flask import Flask, request, jsonify, url_for, send_from_directory
 from flask_migrate import Migrate
 from flask_swagger import swagger
 from api.utils import APIException, generate_sitemap
-from api.models import db
+from api.models import db, User
 from api.routes import api
 from api.admin import setup_admin
 from api.commands import setup_commands
+# FLASK IMPORT JWT BELOW
+from flask_jwt_extended import create_access_token
+from flask_jwt_extended import get_jwt_identity
+from flask_jwt_extended import jwt_required
+from flask_jwt_extended import JWTManager
 
 # from models import Person
 
@@ -31,6 +36,9 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 MIGRATE = Migrate(app, db, compare_type=True)
 db.init_app(app)
 
+app.config["JWT_SECRET_KEY"] = "Emilio secret key"  # Change this!
+jwt = JWTManager(app)
+
 # add the admin
 setup_admin(app)
 
@@ -41,15 +49,11 @@ setup_commands(app)
 app.register_blueprint(api, url_prefix='/api')
 
 # Handle/serialize errors like a JSON object
-
-
 @app.errorhandler(APIException)
 def handle_invalid_usage(error):
     return jsonify(error.to_dict()), error.status_code
 
 # generate sitemap with all your endpoints
-
-
 @app.route('/')
 def sitemap():
     if ENV == "development":
@@ -57,8 +61,6 @@ def sitemap():
     return send_from_directory(static_file_dir, 'index.html')
 
 # any other endpoint will try to serve it like a static file
-
-
 @app.route('/<path:path>', methods=['GET'])
 def serve_any_other_file(path):
     if not os.path.isfile(os.path.join(static_file_dir, path)):
@@ -66,6 +68,66 @@ def serve_any_other_file(path):
     response = send_from_directory(static_file_dir, path)
     response.cache_control.max_age = 0  # avoid cache memory
     return response
+
+
+# Register new user 
+@app.route('/register', methods=['POST'])
+def register():
+    body = request.get_json()
+    user = User.query.filter_by(email=body["email"]).first()
+    if user == None:
+        user = User(name=body["name"], email=body["email"], password=body["password"], is_active=True)
+        db.session.add(user)
+        db.session.commit()
+        response_body = {
+            "msg" : "A new user has been registered"
+        }
+        return jsonify(response_body), 200
+    else:
+        return jsonify({"msg" : "The email address is already in use"}), 401
+
+# Get all users
+@app.route('/user', methods=['GET'])
+# @jwt_required()
+def get_user():
+    all_users = User.query.all()
+    map_user = list(map(lambda user : user.serialize() ,all_users))
+    return jsonify(map_user), 200
+
+# Log in existing user
+@app.route("/login", methods=["POST"])
+def login():
+    email = request.json.get("email", None)
+    password = request.json.get("password", None)
+    user = User.query.filter_by(email=email).first()
+
+    if user is None:
+        return jsonify({"msg" : "Incorrect email "}), 401
+    if user.password != password:
+        return jsonify({"msg": "Incorrect password"}), 401
+
+    access_token = create_access_token(identity=email)
+    return jsonify(access_token=access_token)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # this only runs if `$ python src/main.py` is executed
