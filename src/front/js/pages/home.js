@@ -1,6 +1,6 @@
 import React, { useContext } from "react";
 import { Context } from "../store/appContext";
-import Form from '../component/form'
+import Login from '../component/login'
 import "../../styles/home.css";
 
 export const Home = () => {
@@ -8,7 +8,7 @@ export const Home = () => {
 
 	return (
 		<div className="text-center mt-5">
-			<Form />
+			<Login />
 		</div>
 	);
 };

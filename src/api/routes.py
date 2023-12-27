@@ -24,7 +24,7 @@ def handle_hello():
     return jsonify(response_body), 200
 
 # Register new user 
-@api.route('/register', methods=['POST']) # This is on port 3001
+@api.route('/signup', methods=['POST']) # This is on port 3001
 def register():
     body = request.get_json()
     user = User.query.filter_by(email=body["email"]).first()
